@@ -8,4 +8,4 @@ RUN pip3 install -r requirements.txt
 
 USER nobody:nogroup
 
-CMD ["python3", "status-page.py", "configuration.json", "log.txt"]
+CMD ["python3", "status-page.py", "configuration.json", "log.json"]
