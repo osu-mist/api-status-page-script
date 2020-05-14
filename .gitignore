@@ -1,4 +1,4 @@
 configuration.json
+log.json
 .DS_Store
-*.txt
 test_build.sh
