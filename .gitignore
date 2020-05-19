@@ -2,3 +2,4 @@ configuration.json
 log.json
 .DS_Store
 test_build.sh
+.idea
