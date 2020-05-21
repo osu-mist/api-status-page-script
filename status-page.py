@@ -33,14 +33,22 @@ class StatusPage:
 
     def get_broken_components(self):
         """Fetches all apis not marked as 'Operational'"""
-        response = requests.get(f'{self.base_url}/components', self.header)
+        try:
+            response = requests.get(f'{self.base_url}/components', self.header)
+        except requests.exceptions.RequestException as err:
+            print(f'REQUEST ERROR! Unable to get components.\n{err}')
+            sys.exit(1)
         for component in response.json()['data']:
             if component['status'] != 1:
                 self.broken_components.append(component)
 
     def get_all_open_incidents(self):
         """Fetches all incidents not marked as 'Resolved'"""
-        response = requests.get(f'{self.base_url}/incidents', self.header)
+        try:
+            response = requests.get(f'{self.base_url}/incidents', self.header)
+        except requests.exceptions.RequestException as err:
+            print(f'REQUEST ERROR! Unable to get incidents.\n{err}')
+            sys.exit(1)
         for incident in response.json()['data']:
             status = incident['status']
             if status != 4:
@@ -76,7 +84,11 @@ class StatusPage:
                         'component_status': 2,
 
                     }
-                    response = requests.post(f'{self.base_url}/incidents', headers=self.header, data=body)
+                    try:
+                        response = requests.post(f'{self.base_url}/incidents', headers=self.header, data=body)
+                    except requests.exceptions.RequestException as err:
+                        print(f'REQUEST ERROR! Incident not posted:\n{err}')
+                        sys.exit(1)
                     print(f'Posted New Incident: {response}')
 
         # then parse through passed tests and resolve any previously opened incidents if it shares the same endpoint
@@ -103,7 +115,15 @@ class StatusPage:
                         'component_id': component_id,
                         'component_status': 1
                     }
-                    response = requests.put(f'{self.base_url}/incidents/{incident_id}', headers=self.header, data=body)
+                    try:
+                        response = requests.put(
+                            f'{self.base_url}/incidents/{incident_id}',
+                            headers=self.header,
+                            data=body
+                        )
+                    except requests.exceptions.RequestException as err:
+                        print(f'REQUEST ERROR! Unable to update incident.\n{err}')
+                        sys.exit(1)
                     print(f'Updated Incident Status: {response}')
 
     def update_component_status(self):
@@ -112,7 +132,11 @@ class StatusPage:
             for open_incident in self.open_incidents:
                 if open_incident['component_id'] == broken_api['id']:
                     body = {'status': 2}
-                    requests.put(f'{self.base_url}/components/{broken_api["id"]}', headers=self.header, data=body)
+                    try:
+                        requests.put(f'{self.base_url}/components/{broken_api["id"]}', headers=self.header, data=body)
+                    except requests.exceptions.RequestException as err:
+                        print(f'REQUEST ERROR! Unable to update component status.\n{err}')
+                        sys.exit(1)
                     break
 
 
