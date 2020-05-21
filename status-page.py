@@ -1,3 +1,4 @@
+import argparse
 import json
 import sys
 from urllib.parse import urlparse
@@ -7,24 +8,39 @@ import requests
 
 class StatusPage:
     def __init__(self):
-        config_data_file = open(sys.argv[1])
-        log_file = open(sys.argv[2])
-        self.config_json = json.load(config_data_file)
-        self.log_json = json.load(log_file)
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            '--config',
+            dest='config_path',
+            help='Path to configuration.json',
+            required=True
+        )
+        parser.add_argument(
+            '--status',
+            dest='api_status_path',
+            help='Path to api_status.json',
+            required=True
+        )
+        args = vars(parser.parse_known_args())
+
+        self.config_json = json.load(args['config_path'])
+        self.api_status_json = json.load(args['api_status_path'])
         self.access_token = self.config_json['access_token']
         self.base_url = self.config_json['base_url']
+        self.api_map = self.config_json['api_map']
         self.header = {'x-cachet-token': self.access_token}
         self.broken_components = []
         self.open_incidents = []
 
     def get_broken_components(self):
+        """Fetches all apis not marked as 'Operational'"""
         response = requests.get(f'{self.base_url}/components', self.header)
         for component in response.json()['data']:
-            status = component['status']
-            if status != 1:
+            if component['status'] != 1:
                 self.broken_components.append(component)
 
     def get_all_open_incidents(self):
+        """Fetches all incidents not marked as 'Resolved'"""
         response = requests.get(f'{self.base_url}/incidents', self.header)
         for incident in response.json()['data']:
             status = incident['status']
@@ -32,29 +48,12 @@ class StatusPage:
                 self.open_incidents.append(incident)
 
     def update_incident_status(self):
-        # map api version and name to Cachet component IDs
-        component_map = {
-            'v1/academic-disciplines': 3,
-            'v1/advisors': 4,
-            'v1/xeapps': 5,
-            'v1/beaverbus': 6,
-            'v1/directory': 7,
-            'v2/directory': 8,
-            'v1/finance': 9,
-            'v1/hr': 10,
-            'v1/identify': 11,
-            'v1/locations': 12,
-            'v1/oauth2': 13,
-            'v1/onbase': 14,
-            'v1/persons': 15,
-            'v1/staff-fee-privilege': 16,
-            'v1/students': 17,
-            'v1/terms': 18,
-            'v1/textbooks': 19
-        }
+        """Goes through all passed and failed tests, resolves open incidents with a passed test, and creates new
+        incidents for failed tests."""
+        api_map = self.api_map
 
-        # then, if there are any test failures, open an incident if there is none open already
-        for failed_test in self.log_json['failed_tests']:
+        # If there are any test failures, open an incident if there is none open already
+        for failed_test in self.api_status_json['failed_tests']:
             already_reported = False
             parsed_url = urlparse(failed_test['base_url'])
             split_path = parsed_url.path.split('/')
@@ -62,8 +61,8 @@ class StatusPage:
             api_name = split_path[2]
             version_and_name = f'{api_version}/{api_name}'
 
-            if version_and_name in component_map:
-                component_id = component_map[version_and_name]
+            if version_and_name in api_map:
+                component_id = api_map[version_and_name]
                 for incident in self.open_incidents:
                     if component_id == incident['component_id']:
                         already_reported = True
@@ -83,7 +82,7 @@ class StatusPage:
                     print(response)
 
         # then parse through passed tests and resolve any previously opened incidents if it shares the same endpoint
-        for passed_test in self.log_json['passed_tests']:
+        for passed_test in self.api_status_json['passed_tests']:
             already_reported = False
             parsed_url = urlparse(passed_test['base_url'])
             split_path = parsed_url.path.split('/')
@@ -92,8 +91,8 @@ class StatusPage:
             version_and_name = f'{api_version}/{api_name}'
             incident_id = None
 
-            if version_and_name in component_map:
-                component_id = component_map[version_and_name]
+            if version_and_name in api_map:
+                component_id = api_map[version_and_name]
                 for incident in self.open_incidents:
                     if component_id == incident['component_id'] \
                             and passed_test['base_url'] == incident['name']:
@@ -106,11 +105,11 @@ class StatusPage:
                         'component_id': component_id,
                         'component_status': 1
                     }
-                    print('Updating Incident Status:')
                     response = requests.put(f'{self.base_url}/incidents/{incident_id}', headers=self.header, data=body)
-                    print(response)
+                    print(f'Updated Incident Status: {response}')
 
     def update_component_status(self):
+        """Mark all components with open incidents with 'Performance Issues' status """
         for broken_api in self.broken_components:
             for open_incident in self.open_incidents:
                 if open_incident['component_id'] == broken_api['id']:
@@ -121,7 +120,8 @@ class StatusPage:
 
 if __name__ == '__main__':
     status_page = StatusPage()
-    # get incidents, then create/update incidents
+
+    # get incidents, then create/update them
     status_page.get_all_open_incidents()
     status_page.update_incident_status()
 
