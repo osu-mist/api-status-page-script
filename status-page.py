@@ -21,10 +21,9 @@ class StatusPage:
             help='Path to api_status.json',
             required=True
         )
-        args = vars(parser.parse_known_args())
-
-        self.config_json = json.load(args['config_path'])
-        self.api_status_json = json.load(args['api_status_path'])
+        args, unknown_args = parser.parse_known_args()
+        self.config_json = json.load(open(args.config_path))
+        self.api_status_json = json.load(open(args.api_status_path))
         self.access_token = self.config_json['access_token']
         self.base_url = self.config_json['base_url']
         self.api_map = self.config_json['api_map']
@@ -77,9 +76,8 @@ class StatusPage:
                         'component_status': 2,
 
                     }
-                    print('Posting New Incident:')
                     response = requests.post(f'{self.base_url}/incidents', headers=self.header, data=body)
-                    print(response)
+                    print(f'Posted New Incident: {response}')
 
         # then parse through passed tests and resolve any previously opened incidents if it shares the same endpoint
         for passed_test in self.api_status_json['passed_tests']:
