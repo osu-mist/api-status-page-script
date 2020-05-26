@@ -38,8 +38,7 @@ class StatusPage:
         try:
             response = requests.get(f'{self.base_url}/components', self.header)
         except RequestException as err:
-            print(f'REQUEST ERROR! Unable to get components.\n{err}')
-            sys.exit(1)
+            sys.exit(f'REQUEST ERROR! Unable to get components.\n{err}')
         for component in response.json()['data']:
             self.all_components.append(component)
 
@@ -49,8 +48,7 @@ class StatusPage:
         try:
             response = requests.get(f'{self.base_url}/incidents', self.header)
         except RequestException as err:
-            print(f'REQUEST ERROR! Unable to get incidents.\n{err}')
-            sys.exit(1)
+            sys.exit(f'REQUEST ERROR! Unable to get incidents.\n{err}')
         for incident in response.json()['data']:
             if incident['status'] != 4:
                 self.open_incidents.append(incident)
@@ -91,8 +89,7 @@ class StatusPage:
                                                  headers=self.header,
                                                  data=body)
                     except RequestException as err:
-                        print(f'REQUEST ERROR! Incident not posted:\n{err}')
-                        sys.exit(1)
+                        sys.exit(f'REQUEST ERROR! Incident not posted:\n{err}')
                     print(f'Posted New Incident: {response}')
 
         # then parse through passed tests and resolve any previously opened
