@@ -1,6 +1,6 @@
 {
-    "access_token": "cachet access token goes here",
-    "base_url": "http://3.20.206.108/api/v1",
+    "access_token": "{cachet_access_token}",
+    "base_url": "https://{status_page_domain}/api/v1",
     "api_map": {
         "{version}/{api_name}": 1
     }
