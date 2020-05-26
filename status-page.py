@@ -24,19 +24,20 @@ class StatusPage:
             required=True
         )
         args = parser.parse_known_args()[0]
+        self.session = requests.Session()
         self.config_json = json.load(open(args.config_path))
         self.api_status_json = json.load(open(args.api_status_path))
         self.access_token = self.config_json['access_token']
         self.base_url = self.config_json['base_url']
         self.api_map = self.config_json['api_map']
-        self.header = {'x-cachet-token': self.access_token}
+        self.session.headers = {'x-cachet-token': self.access_token}
         self.all_components = []
         self.open_incidents = []
 
     def get_components(self):
         """Fetch all apis"""
         try:
-            response = requests.get(f'{self.base_url}/components', self.header)
+            response = self.session.get(f'{self.base_url}/components')
         except RequestException as err:
             sys.exit(f'REQUEST ERROR! Unable to get components.\n{err}')
         for component in response.json()['data']:
@@ -46,7 +47,7 @@ class StatusPage:
         """Fetches all incidents not marked as 'Resolved'"""
         self.open_incidents = []
         try:
-            response = requests.get(f'{self.base_url}/incidents', self.header)
+            response = self.session.get(f'{self.base_url}/incidents')
         except RequestException as err:
             sys.exit(f'REQUEST ERROR! Unable to get incidents.\n{err}')
         for incident in response.json()['data']:
@@ -85,9 +86,10 @@ class StatusPage:
 
                     }
                     try:
-                        response = requests.post(f'{self.base_url}/incidents',
-                                                 headers=self.header,
-                                                 data=body)
+                        response = self.session.post(
+                            f'{self.base_url}/incidents',
+                            data=body
+                        )
                     except RequestException as err:
                         sys.exit(f'REQUEST ERROR! Incident not posted:\n{err}')
                     print(f'Posted New Incident: {response}')
@@ -117,9 +119,8 @@ class StatusPage:
                         'component_status': 1
                     }
                     try:
-                        response = requests.put(
+                        response = self.session.put(
                             f'{self.base_url}/incidents/{incident_id}',
-                            headers=self.header,
                             data=body
                         )
                         print(f'Updated Incident Status: {response}')
@@ -131,13 +132,14 @@ class StatusPage:
     def update_component_status(self):
         """Mark all components with open incidents with 'Performance Issues'
         status"""
-        for open_incident in self.open_incidents:
+        for incident in self.open_incidents:
             body = {'status': 2}
             try:
-                requests.put(
-                    f'{self.base_url}/components/{open_incident["component_id"]}',
-                    headers=self.header, data=body)
-                print((f'Marking component {open_incident["component_id"]} as '
+                self.session.put(
+                    f'{self.base_url}/components/{incident["component_id"]}',
+                    data=body
+                )
+                print((f'Marking component {incident["component_id"]} as '
                        'having "Performance Issues"'))
             except RequestException as err:
                 sys.exit(
