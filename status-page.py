@@ -31,17 +31,8 @@ class StatusPage:
         self.base_url = self.config_json['base_url']
         self.api_map = self.config_json['api_map']
         self.session.headers = {'x-cachet-token': self.access_token}
-        self.all_components = []
         self.open_incidents = []
-
-    def get_components(self):
-        """Fetch all apis"""
-        try:
-            response = self.session.get(f'{self.base_url}/components')
-        except RequestException as err:
-            sys.exit(f'REQUEST ERROR! Unable to get components.\n{err}')
-        for component in response.json()['data']:
-            self.all_components.append(component)
+        self.timed_out = []
 
     def get_all_open_incidents(self):
         """Fetches all incidents not marked as 'Resolved'"""
@@ -75,15 +66,24 @@ class StatusPage:
                     if failed_test['base_url'] == incident['name']:
                         already_reported = True
                 if not already_reported:
+                    message = (
+                        f'An issue has been reported with {api_name} api '
+                        f'{api_version}. Failed test url: '
+                        f'{failed_test["base_url"]}'
+                    )
+                    # Mark 'Performance Issues' if gateway timeout,
+                    # otherwise mark as 'Minor Outage'
+                    c_status = 3
+                    if failed_test['response_code'] == 504:
+                        c_status = 2
+                        self.timed_out.append(component_id)
                     body = {
                         'name': failed_test['base_url'],
-                        'message': f'Jenkins has reported an issue with {api_name} api {api_version}.\
-                                     Failed test url: {failed_test["base_url"]}',
+                        'message': message,
                         'status': 1,
                         'visible': 1,
                         'component_id': component_id,
-                        'component_status': 2,
-
+                        'component_status': c_status,
                     }
                     try:
                         response = self.session.post(
@@ -92,7 +92,10 @@ class StatusPage:
                         )
                     except RequestException as err:
                         sys.exit(f'REQUEST ERROR! Incident not posted:\n{err}')
-                    print(f'Posted New Incident: {response}')
+                    print(
+                        f'Posted new incident with endpoint = '
+                        f'"{failed_test["base_url"]}"'
+                    )
 
         # then parse through passed tests and resolve any previously opened
         # incidents if it shares the same endpoint
@@ -119,28 +122,33 @@ class StatusPage:
                         'component_status': 1
                     }
                     try:
-                        response = self.session.put(
+                        self.session.put(
                             f'{self.base_url}/incidents/{incident_id}',
                             data=body
                         )
-                        print(f'Updated Incident Status: {response}')
+                        print(
+                            f'Updated incident status of '
+                            f'"{passed_test["base_url"]}" to {body["status"]}'
+                        )
                     except RequestException as err:
                         sys.exit(
                             f'REQUEST ERROR! Unable to update incident.\n{err}'
                         )
 
     def update_component_status(self):
-        """Mark all components with open incidents with 'Performance Issues'
-        status"""
+        """Mark all components with open incidents with the appropriate status
+        value"""
         for incident in self.open_incidents:
-            body = {'status': 2}
+            c_id = incident['component_id']
+            body = {'status': 2 if c_id in self.timed_out else 3}
             try:
                 self.session.put(
-                    f'{self.base_url}/components/{incident["component_id"]}',
+                    f'{self.base_url}/components/{c_id}',
                     data=body
                 )
-                print((f'Marking component {incident["component_id"]} as '
-                       'having "Performance Issues"'))
+                print(
+                    f'Updated status of component {c_id} to {body["status"]}'
+                )
             except RequestException as err:
                 sys.exit(
                     f'REQUEST ERROR! Unable to update component status.\n{err}'
