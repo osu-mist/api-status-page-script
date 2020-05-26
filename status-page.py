@@ -5,6 +5,8 @@ from urllib.parse import urlparse
 
 import requests
 
+RequestException = requests.exceptions.RequestException
+
 
 class StatusPage:
     def __init__(self):
@@ -35,7 +37,7 @@ class StatusPage:
         """Fetches all apis not marked as 'Operational'"""
         try:
             response = requests.get(f'{self.base_url}/components', self.header)
-        except requests.exceptions.RequestException as err:
+        except RequestException as err:
             print(f'REQUEST ERROR! Unable to get components.\n{err}')
             sys.exit(1)
         for component in response.json()['data']:
@@ -46,7 +48,7 @@ class StatusPage:
         """Fetches all incidents not marked as 'Resolved'"""
         try:
             response = requests.get(f'{self.base_url}/incidents', self.header)
-        except requests.exceptions.RequestException as err:
+        except RequestException as err:
             print(f'REQUEST ERROR! Unable to get incidents.\n{err}')
             sys.exit(1)
         for incident in response.json()['data']:
@@ -86,7 +88,7 @@ class StatusPage:
                     }
                     try:
                         response = requests.post(f'{self.base_url}/incidents', headers=self.header, data=body)
-                    except requests.exceptions.RequestException as err:
+                    except RequestException as err:
                         print(f'REQUEST ERROR! Incident not posted:\n{err}')
                         sys.exit(1)
                     print(f'Posted New Incident: {response}')
@@ -121,20 +123,20 @@ class StatusPage:
                             headers=self.header,
                             data=body
                         )
-                    except requests.exceptions.RequestException as err:
+                    except RequestException as err:
                         print(f'REQUEST ERROR! Unable to update incident.\n{err}')
                         sys.exit(1)
                     print(f'Updated Incident Status: {response}')
 
     def update_component_status(self):
-        """Mark all components with open incidents with 'Performance Issues' status """
+        """Mark all components with open incidents with 'Performance Issues' status"""
         for broken_api in self.broken_components:
             for open_incident in self.open_incidents:
                 if open_incident['component_id'] == broken_api['id']:
                     body = {'status': 2}
                     try:
                         requests.put(f'{self.base_url}/components/{broken_api["id"]}', headers=self.header, data=body)
-                    except requests.exceptions.RequestException as err:
+                    except RequestException as err:
                         print(f'REQUEST ERROR! Unable to update component status.\n{err}')
                         sys.exit(1)
                     break
