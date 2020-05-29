@@ -1,4 +1,4 @@
 configuration.json
+api_status.json
 .DS_Store
-log.txt
-test_build.sh
+.idea
