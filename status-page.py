@@ -4,8 +4,7 @@ import sys
 from urllib.parse import urlparse
 
 import requests
-
-RequestException = requests.exceptions.RequestException
+from requests.exceptions import RequestException
 
 
 class StatusPage:
