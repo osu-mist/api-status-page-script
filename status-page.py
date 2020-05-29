@@ -52,10 +52,10 @@ class StatusPage:
         create new incidents for each failed test if not already open.
         """
         pass_or_fail = 'passed_tests' if passed else 'failed_tests'
-        for test in self.api_status_json[pass_or_fail]:
+        for test_case in self.api_status_json[pass_or_fail]:
             api_map = self.api_map
             already_reported = False
-            parsed_url = urlparse(test['base_url'])
+            parsed_url = urlparse(test_case['base_url'])
             split_path = parsed_url.path.split('/')
             api_version = split_path[1]
             api_name = split_path[2]
@@ -65,7 +65,7 @@ class StatusPage:
             if version_and_name in api_map:
                 component_id = api_map[version_and_name]
                 for incident in self.open_incidents:
-                    if test['base_url'] == incident['name']:
+                    if test_case['base_url'] == incident['name']:
                         already_reported = True
                         incident_id = incident['id']
                 if passed and already_reported:
@@ -81,7 +81,7 @@ class StatusPage:
                         )
                         print(
                             f'Updated incident status of '
-                            f'"{test["base_url"]}" to {body["status"]}'
+                            f'"{test_case["base_url"]}" to {body["status"]}'
                         )
                     except RequestException as err:
                         sys.exit(
@@ -91,16 +91,16 @@ class StatusPage:
                     message = (
                         f'An issue has been reported with {api_name} api '
                         f'{api_version}. Failed test url: '
-                        f'{test["base_url"]}'
+                        f'{test_case["base_url"]}'
                     )
                     # Mark 'Performance Issues' if gateway timeout,
                     # otherwise mark as 'Minor Outage'
                     c_status = 3
-                    if test['response_code'] == 504:
+                    if test_case['response_code'] == 504:
                         c_status = 2
                         self.timed_out.append(component_id)
                     body = {
-                        'name': test['base_url'],
+                        'name': test_case['base_url'],
                         'message': message,
                         'status': 1,
                         'visible': 1,
@@ -117,7 +117,7 @@ class StatusPage:
                             f'REQUEST ERROR! Incident not posted:\n{err}')
                     print(
                         f'Posted new incident with endpoint = '
-                        f'"{test["base_url"]}"'
+                        f'"{test_case["base_url"]}"'
                     )
 
     def update_component_status(self):
